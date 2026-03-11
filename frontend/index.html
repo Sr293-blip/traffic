@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Traffic Login</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+
+<style>
+body{
+ margin:0;
+ font-family:'Poppins',sans-serif;
+ height:100vh;
+ display:flex;
+ justify-content:center;
+ align-items:center;
+ background:linear-gradient(135deg,#1a73e8,#00c6ff);
+}
+
+.container{
+ background:white;
+ padding:40px;
+ width:90%;
+ max-width:400px;
+ border-radius:15px;
+ box-shadow:0 10px 30px rgba(0,0,0,0.2);
+ text-align:center;
+}
+
+h2{
+ margin-bottom:30px;
+}
+
+input{
+ width:100%;
+ padding:12px;
+ margin:10px 0;
+ border-radius:8px;
+ border:1px solid #ddd;
+ font-size:14px;
+}
+
+button{
+ width:100%;
+ padding:12px;
+ margin-top:15px;
+ border:none;
+ border-radius:8px;
+ background:linear-gradient(45deg,#ff512f,#dd2476);
+ color:white;
+ font-weight:600;
+ cursor:pointer;
+ transition:0.3s;
+}
+
+button:hover{
+ transform:scale(1.05);
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+<h2>🚦 Smart Traffic</h2>
+
+<input id="source" placeholder="📍 Current Location">
+<input id="dest" placeholder="🎯 Destination">
+
+<button onclick="goNext()">GO</button>
+</div>
+
+<script>
+function goNext(){
+ if(!source.value || !dest.value){
+  alert("Enter both locations")
+  return
+ }
+
+ // Save to localStorage
+ localStorage.setItem("source",source.value)
+ localStorage.setItem("dest",dest.value)
+
+ window.location.href="dashboard.html"
+}
+</script>
+
+</body>
+</html>
