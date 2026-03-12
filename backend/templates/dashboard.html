@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Traffic Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+<style>
+
+*{
+box-sizing:border-box;
+font-family:'Poppins',sans-serif;
+}
+
+body{
+margin:0;
+background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+display:flex;
+flex-direction:column;
+align-items:center;
+}
+
+/* Title */
+
+h1{
+color:white;
+margin-top:20px;
+}
+
+/* Map Container */
+
+.map-container{
+width:85%;
+max-width:900px;
+height:400px;
+margin-top:20px;
+border-radius:15px;
+overflow:hidden;
+box-shadow:0 10px 30px rgba(0,0,0,0.4);
+}
+
+/* Map */
+
+.map-container iframe{
+width:100%;
+height:100%;
+border:0;
+}
+
+/* Bottom Panel */
+
+#bottomPanel{
+margin-top:30px;
+}
+
+/* Glass Card */
+
+.card{
+width:320px;
+padding:25px;
+background:rgba(255,255,255,0.15);
+backdrop-filter:blur(12px);
+border-radius:16px;
+box-shadow:0 25px 50px rgba(0,0,0,0.4);
+color:white;
+text-align:center;
+}
+
+/* Button */
+
+.analyticsBtn{
+width:100%;
+padding:12px;
+border:none;
+border-radius:8px;
+background:linear-gradient(135deg,#ff512f,#dd2476);
+color:white;
+font-size:16px;
+font-weight:600;
+cursor:pointer;
+transition:0.3s;
+}
+
+.analyticsBtn:hover{
+transform:scale(1.05);
+}
+
+</style>
+</head>
+
+<body>
+
+<h1>🚦 Smart Traffic Dashboard</h1>
+
+<div class="map-container" id="map"></div>
+
+<div id="bottomPanel">
+
+<div class="card">
+
+<h3>Traffic Insights</h3>
+
+<a href="/traffic-analytics">
+<button class="analyticsBtn">View Traffic Analytics</button>
+</a>
+
+</div>
+
+</div>
+
+<script>
+
+window.onload = function(){
+
+ const source = localStorage.getItem("source");
+ const dest = localStorage.getItem("dest");
+
+ if(!source || !dest){
+  alert("Location data missing");
+  window.location.href="/index";
+  return;
+ }
+
+ const mapFrame = document.createElement("iframe");
+
+ mapFrame.src =
+ "https://www.google.com/maps?q="+source+" to "+dest+"&output=embed";
+
+ document.getElementById("map").appendChild(mapFrame);
+
+};
+
+</script>
+
+</body>
+</html>

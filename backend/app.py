@@ -2,11 +2,12 @@ from flask import Flask, render_template, request, redirect, session, jsonify
 import sqlite3
 import datetime
 
-# Import AI modules
+# AI Modules
 from vehicle_detection import detect_congestion
 from accident_detection import detect_accident
 from congestion_prediction import predict_congestion
 from email_alert import send_email
+from rl_agent import route_decision
 
 app = Flask(__name__)
 app.secret_key = "traffic_secret"
@@ -44,7 +45,6 @@ def init_db():
     conn.commit()
     conn.close()
 
-
 init_db()
 
 # ---------------- AUTH ----------------
@@ -62,8 +62,8 @@ def signup_page():
 @app.route("/signup", methods=["POST"])
 def signup():
 
-    username = request.form["username"]
-    password = request.form["password"]
+    username = request.form.get("username")
+    password = request.form.get("password")
 
     conn = get_db()
 
@@ -73,10 +73,11 @@ def signup():
             (username, password)
         )
         conn.commit()
-        return redirect("/")
+
+        return redirect("/?signup=success")
 
     except:
-        return "User exists"
+        return redirect("/signup-page")
 
     finally:
         conn.close()
@@ -85,8 +86,8 @@ def signup():
 @app.route("/login", methods=["POST"])
 def login():
 
-    username = request.form["username"]
-    password = request.form["password"]
+    username = request.form.get("username")
+    password = request.form.get("password")
 
     conn = get_db()
 
@@ -99,9 +100,36 @@ def login():
 
     if user:
         session["user"] = username
-        return redirect("/dashboard")
+        return redirect("/index")
 
     return "Invalid login"
+
+
+@app.route("/index")
+def index():
+
+    if "user" not in session:
+        return redirect("/")
+
+    return render_template("index.html")
+
+
+@app.route("/dashboard")
+def dashboard():
+
+    if "user" not in session:
+        return redirect("/")
+
+    return render_template("dashboard.html")
+
+
+@app.route("/traffic-analytics")
+def traffic_analytics():
+
+    if "user" not in session:
+        return redirect("/")
+
+    return render_template("analytics.html")
 
 
 @app.route("/logout")
@@ -120,10 +148,10 @@ def analyze():
 
     video = "traffic.mp4"
 
+    # YOLO vehicle detection
     congestion = detect_congestion(video)
 
-    vehicle_count = 0
-
+    # Convert congestion → vehicle count
     if congestion == "LOW":
         vehicle_count = 10
     elif congestion == "MEDIUM":
@@ -137,21 +165,37 @@ def analyze():
     if accident:
         send_email(
             "authority@email.com",
-            "Accident Alert",
-            "Possible accident detected"
+            "🚨 Accident Alert",
+            f"""
+Possible accident detected!
+
+Traffic Status : {congestion}
+Vehicle Count  : {vehicle_count}
+
+Location: Smart Traffic Junction
+Immediate attention required.
+"""
         )
 
-    # Store history
+    # Save traffic history
     traffic_history.append(vehicle_count)
 
     if len(traffic_history) > 10:
         traffic_history.pop(0)
 
-    # LSTM prediction
+    # LSTM congestion prediction
     prediction = None
 
     if len(traffic_history) == 10:
         prediction = predict_congestion(traffic_history)
+
+    # RL route decision
+    route = route_decision(congestion)
+
+    suggestion = "Normal Route Recommended"
+
+    if route == "ALTERNATE_ROUTE":
+        suggestion = "Heavy Traffic Detected. Take Alternate Route"
 
     # Save to database
     conn = get_db()
@@ -172,7 +216,9 @@ def analyze():
         "congestion": congestion,
         "vehicle_count": vehicle_count,
         "prediction": str(prediction),
-        "accident": accident
+        "accident": accident,
+        "route": route,
+        "suggestion": suggestion
     })
 
 
@@ -200,17 +246,6 @@ def analytics():
         "times": times,
         "counts": counts
     })
-
-
-# ---------------- DASHBOARD ----------------
-
-@app.route("/dashboard")
-def dashboard():
-
-    if "user" not in session:
-        return redirect("/")
-
-    return render_template("dashboard.html")
 
 
 # ---------------- RUN ----------------

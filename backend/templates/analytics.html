@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Traffic Analytics</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+
+body{
+margin:0;
+height:100vh;
+font-family:'Poppins',sans-serif;
+background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+display:flex;
+justify-content:center;
+align-items:center;
+}
+
+.card{
+width:80%;
+max-width:700px;
+padding:30px;
+background:rgba(255,255,255,0.15);
+backdrop-filter:blur(12px);
+border-radius:16px;
+color:white;
+text-align:center;
+}
+
+canvas{
+background:white;
+padding:15px;
+border-radius:10px;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="card">
+
+<h2>🚦 Traffic Vehicle Analytics</h2>
+
+<canvas id="trafficChart"></canvas>
+
+</div>
+
+<script>
+
+// Time labels
+const times = ["8 AM","9 AM","10 AM","11 AM","12 PM","1 PM","2 PM","3 PM"];
+
+// Generate random vehicle data
+let counts = [];
+
+for(let i=0;i<times.length;i++){
+    counts.push(Math.floor(Math.random()*100)+10); 
+}
+
+// Create chart
+new Chart(document.getElementById("trafficChart"),{
+
+type:"line",
+
+data:{
+labels:times,
+datasets:[{
+label:"Vehicle Count",
+data:counts,
+borderWidth:2,
+tension:0.4
+}]
+},
+
+options:{
+responsive:true,
+scales:{
+y:{beginAtZero:true}
+}
+}
+
+})
+
+</script>
+
+</body>
+</html>
