@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Traffic Analysis Result</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+<style>
+*{
+  box-sizing:border-box;
+  font-family:'Poppins',sans-serif;
+}
+
+body{
+  margin:0;
+  height:100vh;
+  background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+/* Glass Card */
+.card{
+  width:420px;
+  padding:35px;
+  background:rgba(255,255,255,0.15);
+  backdrop-filter:blur(12px);
+  border-radius:16px;
+  box-shadow:0 25px 50px rgba(0,0,0,0.4);
+  color:white;
+  text-align:center;
+}
+
+/* Title */
+h2{
+  margin-bottom:20px;
+}
+
+/* Alert Boxes */
+.alert{
+  margin-top:15px;
+  padding:12px;
+  border-radius:8px;
+  font-weight:600;
+}
+
+.safe{
+  background:#28a745;
+  color:white;
+}
+
+.warning{
+  background:#ffc107;
+  color:black;
+}
+
+.danger{
+  background:#dc3545;
+  color:white;
+}
+
+/* Button */
+button{
+  margin-top:20px;
+  width:100%;
+  padding:12px;
+  border:none;
+  border-radius:8px;
+  background:linear-gradient(135deg,#ff512f,#dd2476);
+  color:white;
+  font-size:16px;
+  font-weight:600;
+  cursor:pointer;
+  transition:0.3s;
+}
+
+button:hover{
+  transform:scale(1.05);
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="card">
+
+<h2>🚦 Traffic Analysis Result</h2>
+
+<div id="result">Analyzing traffic...</div>
+
+<button onclick="window.location.href='/dashboard'">
+Back to Dashboard
+</button>
+
+</div>
+
+<script>
+
+// Convert numeric prediction to words
+function trafficDescription(prediction){
+  if(prediction === null) return "Unknown";
+
+  if(prediction < 0.3) return "Low";
+  else if(prediction < 0.7) return "Medium";
+  else return "High";
+}
+
+fetch("/analyze",{
+  method:"POST"
+})
+.then(res => res.json())
+.then(data => {
+
+  let alertClass = "safe";
+  if(data.congestion=="MEDIUM") alertClass="warning";
+  if(data.congestion=="HIGH") alertClass="danger";
+
+  let accidentMsg = "";
+  if(data.accident)
+    accidentMsg = `<div class="alert danger">🚨 Accident Detected! Authorities Notified</div>`;
+
+  // Convert numeric prediction to descriptive words
+  let predictionText = trafficDescription(parseFloat(data.prediction));
+
+  document.getElementById("result").innerHTML =
+  `
+  <div class="alert ${alertClass}">
+    Traffic Level : ${data.congestion}<br>
+    Vehicle Count : ${data.vehicle_count}
+  </div>
+
+  <div class="alert warning">
+    Predicted Traffic : ${predictionText}
+  </div>
+
+  <div class="alert safe">
+    Route Suggestion : ${data.suggestion}
+  </div>
+
+  ${accidentMsg}
+  `;
+})
+
+</script>
+
+</body>
+</html>

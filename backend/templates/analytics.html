@@ -3,35 +3,76 @@
 <head>
 <title>Traffic Analytics</title>
 
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
 
-body{
-margin:0;
-height:100vh;
-font-family:'Poppins',sans-serif;
-background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
-display:flex;
-justify-content:center;
-align-items:center;
+*{
+  box-sizing:border-box;
+  font-family:'Poppins',sans-serif;
 }
 
+body{
+  margin:0;
+  min-height:100vh;
+  background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+}
+
+/* Card */
+
 .card{
-width:80%;
-max-width:700px;
-padding:30px;
-background:rgba(255,255,255,0.15);
-backdrop-filter:blur(12px);
-border-radius:16px;
-color:white;
-text-align:center;
+  width:85%;
+  max-width:900px;
+  padding:30px;
+  background:rgba(255,255,255,0.15);
+  backdrop-filter:blur(12px);
+  border-radius:16px;
+  color:white;
+  text-align:center;
+  box-shadow:0 20px 40px rgba(0,0,0,0.4);
+}
+
+/* Charts container side by side */
+
+.charts-container{
+  display:flex;
+  justify-content:space-between;
+  gap:20px;
+  flex-wrap:wrap;
+  margin-top:25px;
 }
 
 canvas{
-background:white;
-padding:15px;
-border-radius:10px;
+  background:white;
+  padding:10px;
+  border-radius:10px;
+  flex:1;
+  min-width:300px;
+  height:300px;
+}
+
+/* Button */
+
+button{
+  margin-top:25px;
+  padding:12px 25px;
+  border:none;
+  border-radius:8px;
+  background:linear-gradient(135deg,#ff512f,#dd2476);
+  color:white;
+  font-size:16px;
+  font-weight:600;
+  cursor:pointer;
+  transition:0.3s;
+}
+
+button:hover{
+  transform:scale(1.05);
 }
 
 </style>
@@ -41,9 +82,14 @@ border-radius:10px;
 
 <div class="card">
 
-<h2>🚦 Traffic Vehicle Analytics</h2>
+<h2>🚦 Traffic Analytics</h2>
 
-<canvas id="trafficChart"></canvas>
+<div class="charts-container">
+  <canvas id="trafficChart"></canvas>
+  <canvas id="congestionChart"></canvas>
+</div>
+
+<button onclick="goDashboard()">Back to Dashboard</button>
 
 </div>
 
@@ -53,35 +99,64 @@ border-radius:10px;
 const times = ["8 AM","9 AM","10 AM","11 AM","12 PM","1 PM","2 PM","3 PM"];
 
 // Generate random vehicle data
-let counts = [];
+let vehicleCounts = [];
+let congestionLevels = [];
 
 for(let i=0;i<times.length;i++){
-    counts.push(Math.floor(Math.random()*100)+10); 
+  vehicleCounts.push(Math.floor(Math.random()*100)+10);
+  congestionLevels.push(Math.floor(Math.random()*10)+1);
 }
 
-// Create chart
+// Vehicle Count Line Chart
 new Chart(document.getElementById("trafficChart"),{
+  type:"line",
+  data:{
+    labels:times,
+    datasets:[{
+      label:"Vehicle Count",
+      data:vehicleCounts,
+      borderWidth:2,
+      tension:0.4,
+      borderColor:"#ff512f",
+      backgroundColor:"rgba(255,81,47,0.2)",
+      fill:true
+    }]
+  },
+  options:{
+    responsive:true,
+    maintainAspectRatio:false,
+    scales:{
+      y:{beginAtZero:true}
+    }
+  }
+});
 
-type:"line",
+// Congestion Level Bar Chart
+new Chart(document.getElementById("congestionChart"),{
+  type:"bar",
+  data:{
+    labels:times,
+    datasets:[{
+      label:"Congestion Level",
+      data:congestionLevels,
+      borderWidth:2,
+      backgroundColor:"#42e695",
+      borderColor:"#2bb673"
+    }]
+  },
+  options:{
+    responsive:true,
+    maintainAspectRatio:false,
+    scales:{
+      y:{beginAtZero:true, max:10}
+    }
+  }
+});
 
-data:{
-labels:times,
-datasets:[{
-label:"Vehicle Count",
-data:counts,
-borderWidth:2,
-tension:0.4
-}]
-},
-
-options:{
-responsive:true,
-scales:{
-y:{beginAtZero:true}
+// Back button function
+function goDashboard(){
+  window.location.href="/dashboard"
 }
-}
-
-})
 
 </script>
 

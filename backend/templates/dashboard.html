@@ -2,7 +2,6 @@
 <html>
 <head>
 <title>Traffic Dashboard</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
 
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
 
@@ -15,32 +14,79 @@ font-family:'Poppins',sans-serif;
 
 body{
 margin:0;
+min-height:100vh;
 background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
-display:flex;
-flex-direction:column;
-align-items:center;
-}
-
-/* Title */
-
-h1{
 color:white;
-margin-top:20px;
 }
 
-/* Map Container */
+/* Top Navbar */
 
-.map-container{
-width:85%;
-max-width:900px;
-height:400px;
-margin-top:20px;
-border-radius:15px;
-overflow:hidden;
-box-shadow:0 10px 30px rgba(0,0,0,0.4);
+.navbar{
+width:100%;
+padding:15px 40px;
+display:flex;
+justify-content:space-between;
+align-items:center;
+background:rgba(255,255,255,0.1);
+backdrop-filter:blur(10px);
+box-shadow:0 5px 15px rgba(0,0,0,0.3);
+}
+
+.logo{
+font-size:20px;
+font-weight:600;
+}
+
+.menu{
+display:flex;
+gap:20px;
+}
+
+.menu button{
+padding:10px 18px;
+border:none;
+border-radius:6px;
+background:linear-gradient(135deg,#ff512f,#dd2476);
+color:white;
+cursor:pointer;
+font-size:14px;
+transition:0.3s;
+}
+
+.menu button:hover{
+transform:scale(1.05);
+}
+
+/* Main Container */
+
+.container{
+display:flex;
+justify-content:center;
+margin-top:40px;
+}
+
+/* Glass Card */
+
+.card{
+width:900px;
+padding:30px;
+background:rgba(255,255,255,0.15);
+backdrop-filter:blur(12px);
+border-radius:16px;
+box-shadow:0 25px 50px rgba(0,0,0,0.4);
+text-align:center;
 }
 
 /* Map */
+
+.map-container{
+width:100%;
+height:400px;
+border-radius:12px;
+overflow:hidden;
+box-shadow:0 5px 20px rgba(0,0,0,0.4);
+margin-top:20px;
+}
 
 .map-container iframe{
 width:100%;
@@ -48,62 +94,42 @@ height:100%;
 border:0;
 }
 
-/* Bottom Panel */
-
-#bottomPanel{
-margin-top:30px;
-}
-
-/* Glass Card */
-
-.card{
-width:320px;
-padding:25px;
-background:rgba(255,255,255,0.15);
-backdrop-filter:blur(12px);
-border-radius:16px;
-box-shadow:0 25px 50px rgba(0,0,0,0.4);
-color:white;
-text-align:center;
-}
-
-/* Button */
-
-.analyticsBtn{
-width:100%;
-padding:12px;
-border:none;
-border-radius:8px;
-background:linear-gradient(135deg,#ff512f,#dd2476);
-color:white;
-font-size:16px;
-font-weight:600;
-cursor:pointer;
-transition:0.3s;
-}
-
-.analyticsBtn:hover{
-transform:scale(1.05);
-}
-
 </style>
 </head>
 
 <body>
 
-<h1>🚦 Smart Traffic Dashboard</h1>
+<!-- NAVBAR -->
 
-<div class="map-container" id="map"></div>
+<div class="navbar">
 
-<div id="bottomPanel">
+<div class="logo">🚦 Smart Traffic System</div>
+
+<div class="menu">
+
+<button onclick="goAnalyze()">Analyze Traffic</button>
+
+<button onclick="window.location.href='/traffic-analytics'">
+Analytics
+</button>
+
+<button onclick="window.location.href='/logout'">
+Logout
+</button>
+
+</div>
+
+</div>
+
+<!-- DASHBOARD -->
+
+<div class="container">
 
 <div class="card">
 
-<h3>Traffic Insights</h3>
+<h1>Traffic Route Map</h1>
 
-<a href="/traffic-analytics">
-<button class="analyticsBtn">View Traffic Analytics</button>
-</a>
+<div class="map-container" id="map"></div>
 
 </div>
 
@@ -111,25 +137,22 @@ transform:scale(1.05);
 
 <script>
 
-window.onload = function(){
+window.onload=function(){
 
- const source = localStorage.getItem("source");
- const dest = localStorage.getItem("dest");
+const source=localStorage.getItem("source");
+const dest=localStorage.getItem("dest");
 
- if(!source || !dest){
-  alert("Location data missing");
-  window.location.href="/index";
-  return;
- }
+const frame=document.createElement("iframe");
 
- const mapFrame = document.createElement("iframe");
+frame.src="https://www.google.com/maps?q="+source+" to "+dest+"&output=embed";
 
- mapFrame.src =
- "https://www.google.com/maps?q="+source+" to "+dest+"&output=embed";
+document.getElementById("map").appendChild(frame);
 
- document.getElementById("map").appendChild(mapFrame);
+}
 
-};
+function goAnalyze(){
+window.location.href="/analysis-result"
+}
 
 </script>
 

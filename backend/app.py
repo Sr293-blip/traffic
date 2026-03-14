@@ -1,12 +1,14 @@
 from flask import Flask, render_template, request, redirect, session, jsonify
 import sqlite3
 import datetime
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # AI Modules
 from vehicle_detection import detect_congestion
 from accident_detection import detect_accident
 from congestion_prediction import predict_congestion
-from email_alert import send_email
 from rl_agent import route_decision
 
 app = Flask(__name__)
@@ -17,35 +19,54 @@ DATABASE = "users.db"
 # ---------------- DATABASE ----------------
 
 def get_db():
-    conn = sqlite3.connect(DATABASE)
+    conn = sqlite3.connect(DATABASE, timeout=10)
     conn.row_factory = sqlite3.Row
     return conn
 
-
 def init_db():
-    conn = get_db()
-
-    conn.execute("""
-    CREATE TABLE IF NOT EXISTS users(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE,
-        password TEXT
-    )
-    """)
-
-    conn.execute("""
-    CREATE TABLE IF NOT EXISTS traffic_logs(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        time TEXT,
-        congestion TEXT,
-        vehicle_count INTEGER
-    )
-    """)
-
-    conn.commit()
-    conn.close()
+    with get_db() as conn:
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS users(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE,
+            password TEXT,
+            email TEXT
+        )
+        """)
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS traffic_logs(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            time TEXT,
+            congestion TEXT,
+            vehicle_count INTEGER
+        )
+        """)
 
 init_db()
+
+# ---------------- EMAIL ALERT ----------------
+
+def send_email_alert(to_email, subject, message):
+    smtp_server = "smtp.gmail.com"
+    smtp_port = 587
+    sender_email = "your_email@gmail.com"          # Replace with your email
+    sender_password = "your_app_password"          # Use Gmail App Password
+
+    msg = MIMEMultipart()
+    msg['From'] = sender_email
+    msg['To'] = to_email
+    msg['Subject'] = subject
+    msg.attach(MIMEText(message, 'plain'))
+
+    try:
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        server.send_message(msg)
+        server.quit()
+        print(f"Email sent to {to_email}")
+    except Exception as e:
+        print(f"Failed to send email: {e}")
 
 # ---------------- AUTH ----------------
 
@@ -53,99 +74,80 @@ init_db()
 def login_page():
     return render_template("login.html")
 
-
 @app.route("/signup-page")
 def signup_page():
     return render_template("signup.html")
 
-
 @app.route("/signup", methods=["POST"])
 def signup():
-
     username = request.form.get("username")
     password = request.form.get("password")
-
-    conn = get_db()
+    email = request.form.get("email")  # Add email field in signup form
 
     try:
-        conn.execute(
-            "INSERT INTO users(username,password) VALUES(?,?)",
-            (username, password)
-        )
-        conn.commit()
-
+        with get_db() as conn:
+            conn.execute(
+                "INSERT INTO users(username,password,email) VALUES(?,?,?)",
+                (username, password, email)
+            )
         return redirect("/?signup=success")
-
-    except:
+    except sqlite3.IntegrityError:
+        return redirect("/signup-page")  # username already exists
+    except Exception as e:
+        print(f"Signup Error: {e}")
         return redirect("/signup-page")
-
-    finally:
-        conn.close()
-
 
 @app.route("/login", methods=["POST"])
 def login():
-
     username = request.form.get("username")
     password = request.form.get("password")
 
-    conn = get_db()
-
-    user = conn.execute(
-        "SELECT * FROM users WHERE username=? AND password=?",
-        (username, password)
-    ).fetchone()
-
-    conn.close()
+    with get_db() as conn:
+        user = conn.execute(
+            "SELECT * FROM users WHERE username=? AND password=?",
+            (username, password)
+        ).fetchone()
 
     if user:
         session["user"] = username
         return redirect("/index")
-
     return "Invalid login"
-
 
 @app.route("/index")
 def index():
-
     if "user" not in session:
         return redirect("/")
-
     return render_template("index.html")
-
 
 @app.route("/dashboard")
 def dashboard():
-
     if "user" not in session:
         return redirect("/")
-
     return render_template("dashboard.html")
-
 
 @app.route("/traffic-analytics")
 def traffic_analytics():
-
     if "user" not in session:
         return redirect("/")
-
     return render_template("analytics.html")
 
+@app.route("/analysis-result")
+def analysis_result():
+    if "user" not in session:
+        return redirect("/")
+    return render_template("analysis_result.html")
 
 @app.route("/logout")
 def logout():
     session.pop("user", None)
     return redirect("/")
 
-
 # ---------------- TRAFFIC ANALYSIS ----------------
 
 traffic_history = []
 
-
 @app.route("/analyze", methods=["POST"])
 def analyze():
-
     video = "traffic.mp4"
 
     # YOLO vehicle detection
@@ -162,91 +164,82 @@ def analyze():
     # Accident detection
     accident = detect_accident(vehicle_count)
 
-    if accident:
-        send_email(
-            "authority@email.com",
-            "🚨 Accident Alert",
-            f"""
-Possible accident detected!
-
-Traffic Status : {congestion}
-Vehicle Count  : {vehicle_count}
-
-Location: Smart Traffic Junction
-Immediate attention required.
-"""
-        )
-
-    # Save traffic history
-    traffic_history.append(vehicle_count)
-
-    if len(traffic_history) > 10:
-        traffic_history.pop(0)
-
-    # LSTM congestion prediction
-    prediction = None
-
-    if len(traffic_history) == 10:
-        prediction = predict_congestion(traffic_history)
-
     # RL route decision
     route = route_decision(congestion)
-
     suggestion = "Normal Route Recommended"
-
     if route == "ALTERNATE_ROUTE":
         suggestion = "Heavy Traffic Detected. Take Alternate Route"
 
-    # Save to database
-    conn = get_db()
+    # Save traffic history
+    traffic_history.append(vehicle_count)
+    if len(traffic_history) > 10:
+        traffic_history.pop(0)
 
-    conn.execute(
-        "INSERT INTO traffic_logs(time, congestion, vehicle_count) VALUES(?,?,?)",
-        (
-            str(datetime.datetime.now()),
-            congestion,
-            vehicle_count
+    # LSTM congestion prediction (convert numeric to words)
+    prediction_word = "Not enough data"
+    if len(traffic_history) == 10:
+        prediction_value = predict_congestion(traffic_history)
+        if prediction_value < 20:
+            prediction_word = "LOW"
+        elif prediction_value < 40:
+            prediction_word = "MEDIUM"
+        else:
+            prediction_word = "HIGH"
+
+    # Save to database and fetch user email
+    try:
+        with get_db() as conn:
+            conn.execute(
+                "INSERT INTO traffic_logs(time, congestion, vehicle_count) VALUES(?,?,?)",
+                (str(datetime.datetime.now()), congestion, vehicle_count)
+            )
+            row = conn.execute(
+                "SELECT email FROM users WHERE username=?", (session["user"],)
+            ).fetchone()
+            user_email = row["email"] if row and "email" in row.keys() else None
+    except Exception as e:
+        print(f"DB Error: {e}")
+        user_email = None
+
+    # Send alert email if accident occurs or congestion is high
+    if user_email and (accident or congestion == "HIGH"):
+        send_email_alert(
+            to_email=user_email,
+            subject="🚨 Smart Traffic Alert",
+            message=f"""
+Traffic Alert!
+
+Traffic Status : {congestion}
+Vehicle Count  : {vehicle_count}
+Accident Detected : {'Yes' if accident else 'No'}
+Route Suggestion : {suggestion}
+
+Stay safe!
+"""
         )
-    )
-
-    conn.commit()
-    conn.close()
 
     return jsonify({
         "congestion": congestion,
         "vehicle_count": vehicle_count,
-        "prediction": str(prediction),
+        "prediction": prediction_word,
         "accident": accident,
         "route": route,
         "suggestion": suggestion
     })
 
-
 # ---------------- GRAPH DATA API ----------------
 
 @app.route("/analytics")
 def analytics():
+    with get_db() as conn:
+        data = conn.execute(
+            "SELECT time, vehicle_count FROM traffic_logs ORDER BY id DESC LIMIT 20"
+        ).fetchall()
 
-    conn = get_db()
+    times = [row["time"][-8:] for row in reversed(data)]
+    counts = [row["vehicle_count"] for row in reversed(data)]
 
-    data = conn.execute(
-        "SELECT time, vehicle_count FROM traffic_logs ORDER BY id DESC LIMIT 20"
-    ).fetchall()
-
-    conn.close()
-
-    times = []
-    counts = []
-
-    for row in reversed(data):
-        times.append(row["time"][-8:])
-        counts.append(row["vehicle_count"])
-
-    return jsonify({
-        "times": times,
-        "counts": counts
-    })
-
+    return jsonify({"times": times, "counts": counts})
 
 # ---------------- RUN ----------------
 
