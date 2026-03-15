@@ -26,13 +26,12 @@ def get_db():
 
 def init_db():
     with get_db() as conn:
+        # Create tables
         conn.execute("""
         CREATE TABLE IF NOT EXISTS users(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE,
-            password TEXT,
-            email TEXT,
-            phone TEXT
+            password TEXT
         )
         """)
         conn.execute("""
@@ -43,6 +42,15 @@ def init_db():
             vehicle_count INTEGER
         )
         """)
+        # Add email and phone columns safely
+        try:
+            conn.execute("ALTER TABLE users ADD COLUMN email TEXT")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            conn.execute("ALTER TABLE users ADD COLUMN phone TEXT")
+        except sqlite3.OperationalError:
+            pass
 
 init_db()
 
@@ -88,7 +96,7 @@ def send_sms_alert(to_number, message):
     except Exception as e:
         print(f"Failed to send SMS: {e}")
 
-# ---------------- AUTH ----------------
+# ---------------- AUTH ROUTES ----------------
 
 @app.route("/")
 def login_page():
@@ -103,7 +111,7 @@ def signup():
     username = request.form.get("username")
     password = request.form.get("password")
     email = request.form.get("email")
-    phone = request.form.get("phone")  # new phone field in signup form
+    phone = request.form.get("phone")
 
     try:
         with get_db() as conn:
@@ -169,18 +177,13 @@ traffic_history = []
 
 @app.route("/analyze", methods=["POST"])
 def analyze():
-    video = "traffich.mp4"
+    video = "traffic.mp4"
 
     # YOLO vehicle detection
     congestion = detect_congestion(video)
 
     # Convert congestion → vehicle count
-    if congestion == "LOW":
-        vehicle_count = 10
-    elif congestion == "MEDIUM":
-        vehicle_count = 25
-    else:
-        vehicle_count = 50
+    vehicle_count = 10 if congestion=="LOW" else 25 if congestion=="MEDIUM" else 50
 
     # Accident detection
     accident = detect_accident(vehicle_count)
@@ -188,26 +191,27 @@ def analyze():
     # RL route decision
     route = route_decision(congestion)
     suggestion = "Normal Route Recommended"
-    if route == "ALTERNATE_ROUTE":
+    if route=="ALTERNATE_ROUTE":
         suggestion = "Heavy Traffic Detected. Take Alternate Route"
 
-    # Save traffic history
+    # Update traffic history
     traffic_history.append(vehicle_count)
-    if len(traffic_history) > 10:
+    if len(traffic_history)>10:
         traffic_history.pop(0)
 
-    # LSTM congestion prediction
+    # LSTM prediction
     prediction_word = "Not enough data"
-    if len(traffic_history) == 10:
+    if len(traffic_history)==10:
         prediction_value = predict_congestion(traffic_history)
-        if prediction_value < 15:
+        if prediction_value<20:
             prediction_word = "LOW"
-        elif prediction_value < 25:
+        elif prediction_value<40:
             prediction_word = "MEDIUM"
         else:
             prediction_word = "HIGH"
+            suggestion = "Heavy Traffic Detected. Take Alternate Route"
 
-    # Save to database and fetch user info
+    # Save logs and fetch user info
     user_email = None
     user_phone = None
     try:
@@ -225,7 +229,7 @@ def analyze():
     except Exception as e:
         print(f"DB Error: {e}")
 
-    # Prepare alert message
+    # Alert message
     alert_message = f"""
 Traffic Alert!
 
@@ -237,16 +241,12 @@ Route Suggestion : {suggestion}
 Stay safe!
 """
 
-    # Send Email alert
-    if user_email and (accident or congestion == "HIGH"):
-        send_email_alert(
-            to_email=user_email,
-            subject="🚨 Smart Traffic Alert",
-            message=alert_message
-        )
+    # Send email if high congestion or accident
+    if user_email and (accident or congestion=="HIGH"):
+        send_email_alert(user_email, "🚨 Smart Traffic Alert", alert_message)
 
-    # Send SMS alert if predicted congestion is HIGH
-    if user_phone and prediction_word == "HIGH":
+    # Send SMS if predicted traffic is HIGH
+    if user_phone and prediction_word=="HIGH":
         send_sms_alert(user_phone, alert_message)
 
     return jsonify({
@@ -274,5 +274,5 @@ def analytics():
 
 # ---------------- RUN ----------------
 
-if __name__ == "__main__":
+if __name__=="__main__":
     app.run(debug=True)

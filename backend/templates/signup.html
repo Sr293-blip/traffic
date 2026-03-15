@@ -30,6 +30,7 @@ body{
     border-radius:16px;
     box-shadow:0 25px 50px rgba(0,0,0,0.4);
     color:#fff;
+    position: relative;
 }
 
 h2{
@@ -72,6 +73,18 @@ a{
     color:#ffd369;
     text-decoration:none;
 }
+
+/* Success alert */
+.alert-success{
+    display:none;
+    background:#28a745;
+    padding:10px;
+    border-radius:6px;
+    margin-bottom:15px;
+    text-align:center;
+    font-size:14px;
+    font-weight:600;
+}
 </style>
 </head>
 
@@ -80,6 +93,11 @@ a{
 <div class="card">
 
 <h2>📝 Create Account</h2>
+
+<!-- SUCCESS ALERT -->
+<div class="alert-success" id="success-msg">
+    ✅ Account created successfully! You can now login.
+</div>
 
 <form action="/signup" method="POST">
 
@@ -106,6 +124,16 @@ a{
 <p>Already have an account? <a href="/">Login</a></p>
 
 </div>
+
+<script>
+    // Show success message if signup successful
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('signup') === 'success') {
+        document.getElementById('success-msg').style.display = 'block';
+        // Remove query parameter so message doesn't repeat on refresh
+        window.history.replaceState({}, document.title, "/signup-page");
+    }
+</script>
 
 </body>
 </html>
