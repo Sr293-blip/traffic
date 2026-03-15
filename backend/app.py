@@ -4,6 +4,7 @@ import datetime
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from twilio.rest import Client
 
 # AI Modules
 from vehicle_detection import detect_congestion
@@ -30,7 +31,8 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE,
             password TEXT,
-            email TEXT
+            email TEXT,
+            phone TEXT
         )
         """)
         conn.execute("""
@@ -68,6 +70,24 @@ def send_email_alert(to_email, subject, message):
     except Exception as e:
         print(f"Failed to send email: {e}")
 
+# ---------------- TWILIO SMS ALERT ----------------
+
+TWILIO_SID = "your_twilio_account_sid"
+TWILIO_AUTH_TOKEN = "your_twilio_auth_token"
+TWILIO_PHONE = "+1234567890"  # Your Twilio number
+
+def send_sms_alert(to_number, message):
+    try:
+        client = Client(TWILIO_SID, TWILIO_AUTH_TOKEN)
+        client.messages.create(
+            body=message,
+            from_=TWILIO_PHONE,
+            to=to_number
+        )
+        print(f"SMS sent to {to_number}")
+    except Exception as e:
+        print(f"Failed to send SMS: {e}")
+
 # ---------------- AUTH ----------------
 
 @app.route("/")
@@ -82,17 +102,18 @@ def signup_page():
 def signup():
     username = request.form.get("username")
     password = request.form.get("password")
-    email = request.form.get("email")  # Add email field in signup form
+    email = request.form.get("email")
+    phone = request.form.get("phone")  # new phone field in signup form
 
     try:
         with get_db() as conn:
             conn.execute(
-                "INSERT INTO users(username,password,email) VALUES(?,?,?)",
-                (username, password, email)
+                "INSERT INTO users(username,password,email,phone) VALUES(?,?,?,?)",
+                (username, password, email, phone)
             )
         return redirect("/?signup=success")
     except sqlite3.IntegrityError:
-        return redirect("/signup-page")  # username already exists
+        return redirect("/signup-page")
     except Exception as e:
         print(f"Signup Error: {e}")
         return redirect("/signup-page")
@@ -148,7 +169,7 @@ traffic_history = []
 
 @app.route("/analyze", methods=["POST"])
 def analyze():
-    video = "traffic.mp4"
+    video = "traffich.mp4"
 
     # YOLO vehicle detection
     congestion = detect_congestion(video)
@@ -175,18 +196,20 @@ def analyze():
     if len(traffic_history) > 10:
         traffic_history.pop(0)
 
-    # LSTM congestion prediction (convert numeric to words)
+    # LSTM congestion prediction
     prediction_word = "Not enough data"
     if len(traffic_history) == 10:
         prediction_value = predict_congestion(traffic_history)
-        if prediction_value < 20:
+        if prediction_value < 15:
             prediction_word = "LOW"
-        elif prediction_value < 40:
+        elif prediction_value < 25:
             prediction_word = "MEDIUM"
         else:
             prediction_word = "HIGH"
 
-    # Save to database and fetch user email
+    # Save to database and fetch user info
+    user_email = None
+    user_phone = None
     try:
         with get_db() as conn:
             conn.execute(
@@ -194,19 +217,16 @@ def analyze():
                 (str(datetime.datetime.now()), congestion, vehicle_count)
             )
             row = conn.execute(
-                "SELECT email FROM users WHERE username=?", (session["user"],)
+                "SELECT email, phone FROM users WHERE username=?", (session["user"],)
             ).fetchone()
-            user_email = row["email"] if row and "email" in row.keys() else None
+            if row:
+                user_email = row["email"]
+                user_phone = row["phone"]
     except Exception as e:
         print(f"DB Error: {e}")
-        user_email = None
 
-    # Send alert email if accident occurs or congestion is high
-    if user_email and (accident or congestion == "HIGH"):
-        send_email_alert(
-            to_email=user_email,
-            subject="🚨 Smart Traffic Alert",
-            message=f"""
+    # Prepare alert message
+    alert_message = f"""
 Traffic Alert!
 
 Traffic Status : {congestion}
@@ -216,7 +236,18 @@ Route Suggestion : {suggestion}
 
 Stay safe!
 """
+
+    # Send Email alert
+    if user_email and (accident or congestion == "HIGH"):
+        send_email_alert(
+            to_email=user_email,
+            subject="🚨 Smart Traffic Alert",
+            message=alert_message
         )
+
+    # Send SMS alert if predicted congestion is HIGH
+    if user_phone and prediction_word == "HIGH":
+        send_sms_alert(user_phone, alert_message)
 
     return jsonify({
         "congestion": congestion,
